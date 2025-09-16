@@ -1,0 +1,4 @@
+fastapi
+uvicorn
+azure-data-tables
+python-multipart
