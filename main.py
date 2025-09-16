@@ -2,9 +2,12 @@ from fastapi import FastAPI
 from azure.data.tables import TableServiceClient
 from pydantic import BaseModel
 import os
+import uuid
+from datetime import datetime
 
 app = FastAPI()
 
+# Get connection string from environment variable
 connect_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 if not connect_str:
     raise Exception("AZURE_STORAGE_CONNECTION_STRING not set!")
@@ -12,6 +15,7 @@ if not connect_str:
 table_service = TableServiceClient.from_connection_string(connect_str)
 table_client = table_service.get_table_client(table_name="modelpredictions")
 
+# Ensure table exists
 try:
     table_client.create_table()
 except Exception:
@@ -26,14 +30,19 @@ def home():
 
 @app.post("/predict")
 def predict(data: PredictionInput):
+    # 🔮 Simulate ML model (you can replace this with real model later)
     prediction = f"RESULT_{data.input_data.upper()}"
+
+    # 📥 Store in Azure Table
     entity = {
         "PartitionKey": "Predictions",
-        "RowKey": "1",  # Use unique ID later
+        "RowKey": str(uuid.uuid4()),  # Unique ID
         "InputData": data.input_data,
-        "Prediction": prediction
+        "Prediction": prediction,
+        "Timestamp": datetime.utcnow().isoformat()
     }
     table_client.create_entity(entity)
+
     return {"status": "stored", "prediction": prediction}
 
 @app.get("/history")
@@ -43,6 +52,7 @@ def get_history():
     for entity in entities:
         history.append({
             "InputData": entity["InputData"],
-            "Prediction": entity["Prediction"]
+            "Prediction": entity["Prediction"],
+            "Timestamp": entity["Timestamp"]
         })
     return {"history": history}
